@@ -23,7 +23,8 @@ from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
 # 你的工具函数（保持和原项目一致）
 from utlis import read_json_file, dict_list_to_hf_dataset
-
+os.environ["WANDB_MODE"] = "offline"      # 离线写本地文件
+os.environ["WANDB_DIR"]  = "/datanfs4/xinzheyu/project/overthinking_Dr.Dai/code/wandb_log"
 
 # --------------------------- 0. 通用 --------------------------- #
 def seed_everything(seed: int = 42):
@@ -212,7 +213,8 @@ def main():
         logging_steps=10,
         save_steps=100,
         bf16=True,
-        report_to="none",
+        report_to="wandb",  # 让 Trainer 自动写 wandb 日志
+        run_name="qwen25-3b-verify-16k-2",  # 可选：自定义 run 名
         label_names=["labels"],
         gradient_checkpointing=True,
         deepspeed="/datanfs4/xinzheyu/project/overthinking_Dr.Dai/ds_config.json",
