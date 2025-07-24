@@ -4,7 +4,7 @@
 train_deepspeed.py
 ------------------------------------------------
 • Qwen2.5-3B-Instruct + 全量 LoRA
-• 长文本验证标签标注任务
+• 长文本验证标签标qin注任务
 """
 
 import os, random, json
@@ -60,10 +60,10 @@ class MyTrainer(Trainer):
         shift_logits = logits[:, :-1, :].contiguous()  # (B, L-1, V)
         shift_labels = labels[:, 1:].contiguous()  # (B, L-1)
 
-        # flat_logits = shift_logits.view(-1, shift_logits.size(-1))
-        # flat_labels = shift_labels.view(-1)
+        flat_logits = shift_logits.view(-1, shift_logits.size(-1))
+        flat_labels = shift_labels.view(-1)
 
-        loss = flash_ce(shift_logits, shift_labels)
+        loss = flash_ce(flat_logits, flat_logits)
 
         return (loss, shift_logits) if return_outputs else loss
 

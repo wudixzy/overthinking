@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-train_qwen3.py
+train_qwen25_verify.py
 ------------------------------------------------
-• Qwen3-4B-Instruct + 全量 LoRA
+• Qwen2.5-3B-Instruct + 全量 LoRA
 • 长文本验证标签标注任务
 """
 
@@ -160,7 +160,7 @@ class GreedyEvalCallback(TrainerCallback):
 # -------------------- 3. 主函数 -------------------- #
 def main():
     model_name = "/datanfs4/xinzheyu/project/models/Qwen/Qwen3-4B"
-    max_seq_len = 16384
+    max_seq_len = 15360
 
     raw_train = read_json_file("datas/our_datas/math_train_datas_verification.json")
     # 调试代码使用 便于快速查看
