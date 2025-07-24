@@ -8,7 +8,7 @@
   "zero_optimization": {
     "stage": 2,
 
-    "offload_optimizer": { "device": "none", "pin_memory": true },
+    "offload_optimizer": { "device": "cpu", "pin_memory": true, "buffer_count": 4 },
 
     "contiguous_gradients": true,
     "overlap_comm": true,
@@ -23,7 +23,7 @@
   },
 
   "activation_checkpointing": {
-    "partition_activations": false,
+    "partition_activations": true,
     "cpu_checkpointing": false,
     "contiguous_memory_optimization": true
   },

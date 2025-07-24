@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-train_qwen25_verify.py
+train_qwen3.py
 ------------------------------------------------
-• Qwen2.5-3B-Instruct + 全量 LoRA
+• Qwen3-4B-Instruct + 全量 LoRA
 • 长文本验证标签标注任务
 """
 
@@ -59,17 +59,14 @@ class MyTrainer(Trainer):
             attention_mask = inputs.get("attention_mask")
         ).logits                                            # (B, L, V)
 
-        shift_logits = logits[:, :-1, :].contiguous()       # (B, L-1, V)
-        shift_labels = labels[:, 1:].contiguous()           # (B, L-1)
+        shift_logits = logits[:, :-1, :]                    # (B, L-1, V)
+        shift_labels = labels[:, 1:]                        # (B, L-1)
 
-        flat_logits = shift_logits.view(-1, shift_logits.size(-1))
-        flat_labels = shift_labels.view(-1)
+        # flat_logits = shift_logits.view(-1, shift_logits.size(-1))
+        # flat_labels = shift_labels.view(-1)
 
-        # 防护断言（开发期留着，OK 后可删）
-        assert flat_logits.shape[0] == flat_labels.shape[0], \
-            f"{flat_logits.shape} vs {flat_labels.shape}"
 
-        loss = flash_ce(flat_logits, flat_labels)
+        loss = flash_ce(shift_logits, shift_labels)
 
         return (loss, shift_logits) if return_outputs else loss
 
@@ -121,14 +118,14 @@ def build_dataset(tokenizer, raw_datas, max_len):
         processed.append({
             "input_ids": input_ids,
             "labels": labels,
-            "prompt_len": len(prompt_ids)  # ← 新增这一行
+            "prompt_len": len(prompt_ids)
         })
 
     print(f"[build_dataset] 丢弃超长样本 {n_drop}/{len(raw_datas)}  ({n_drop/len(raw_datas):.2%})")
     return dict_list_to_hf_dataset(processed)
 
 
-# -------------------- 2. 贪心自测回调 -------------------- #
+# 贪心自测回调
 class GreedyEvalCallback(TrainerCallback):
     def __init__(self, tokenizer, sample_inputs, interval=40):
         self.tok = tokenizer

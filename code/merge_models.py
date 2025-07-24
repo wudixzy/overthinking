@@ -5,13 +5,13 @@ from peft import PeftModel
 
 # ------------------- 配置你的路径 -------------------
 # 基础模型的路径 (例如 Qwen2.5-3B-Instruct)
-BASE_MODEL_PATH = "/datanfs4/xinzheyu/project/models/Qwen/Qwen3-4B"
+BASE_MODEL_PATH = "/datanfs4/xinzheyu/project/models/Qwen/Qwen2.5-3B-Instruct"
 
 # 你的 LoRA 适配器 checkpoint 路径
-ADAPTER_PATH = "/datanfs4/xinzheyu/project/overthinking_Dr.Dai/code/checkpoints/ckpt-qwen3-4b-verify-16k/checkpoint-381"
+ADAPTER_PATH = "/datanfs4/xinzheyu/project/overthinking_Dr.Dai/code/checkpoints/ckpt-qwen25-3b-verify-16k-2/checkpoint-460"
 
 # 合并后模型的保存路径 (起个新名字)
-MERGED_MODEL_SAVE_PATH = "/datanfs4/xinzheyu/project/models/Qwen3-4B-merged-for-vllm"
+MERGED_MODEL_SAVE_PATH = "/datanfs4/xinzheyu/project/models/Qwen2.5-3B-Instruct-merged-for-vllm"
 # ----------------------------------------------------
 
 def merge_and_save_model(base_model_path, adapter_path, save_path):

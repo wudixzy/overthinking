@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-train_qwen25_verify.py
+train_deepspeed.py
 ------------------------------------------------
 • Qwen2.5-3B-Instruct + 全量 LoRA
 • 长文本验证标签标注任务
@@ -23,8 +23,10 @@ from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
 # 你的工具函数（保持和原项目一致）
 from utlis import read_json_file, dict_list_to_hf_dataset
-os.environ["WANDB_MODE"] = "offline"      # 离线写本地文件
-os.environ["WANDB_DIR"]  = "/datanfs4/xinzheyu/project/overthinking_Dr.Dai/code/wandb_log"
+
+os.environ["WANDB_MODE"] = "offline"  # 离线写本地文件
+os.environ["WANDB_DIR"] = "/datanfs4/xinzheyu/project/overthinking_Dr.Dai/code/wandb_log"
+
 
 # --------------------------- 0. 通用 --------------------------- #
 def seed_everything(seed: int = 42):
@@ -48,24 +50,20 @@ flash_ce = CrossEntropyLoss(ignore_index=-100, reduction="mean", inplace_backwar
 
 class MyTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
-        labels = inputs["labels"]                          # (B, L)
+        labels = inputs["labels"]  # (B, L)
 
         logits = model(
-            input_ids      = inputs["input_ids"],
-            attention_mask = inputs.get("attention_mask")
-        ).logits                                            # (B, L, V)
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs.get("attention_mask")
+        ).logits  # (B, L, V)
 
-        shift_logits = logits[:, :-1, :].contiguous()       # (B, L-1, V)
-        shift_labels = labels[:, 1:].contiguous()           # (B, L-1)
+        shift_logits = logits[:, :-1, :].contiguous()  # (B, L-1, V)
+        shift_labels = labels[:, 1:].contiguous()  # (B, L-1)
 
-        flat_logits = shift_logits.view(-1, shift_logits.size(-1))
-        flat_labels = shift_labels.view(-1)
+        # flat_logits = shift_logits.view(-1, shift_logits.size(-1))
+        # flat_labels = shift_labels.view(-1)
 
-        # 防护断言（开发期留着，OK 后可删）
-        assert flat_logits.shape[0] == flat_labels.shape[0], \
-            f"{flat_logits.shape} vs {flat_labels.shape}"
-
-        loss = flash_ce(flat_logits, flat_labels)
+        loss = flash_ce(shift_logits, shift_labels)
 
         return (loss, shift_logits) if return_outputs else loss
 
@@ -102,25 +100,25 @@ def build_dataset(tokenizer, raw_datas, max_len):
         )
         messages = [
             {"role": "system", "content": SYS_MSG},
-            {"role": "user",   "content": prompt},
+            {"role": "user", "content": prompt},
         ]
         prompt_ids = tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=True)
         answer_ids = tokenizer(d["verification"], add_special_tokens=False)["input_ids"]
         total_len = len(prompt_ids) + len(answer_ids) + 1  # +1 eos
 
-        if total_len > max_len:            # —— 超窗直接丢弃
+        if total_len > max_len:  # —— 超窗直接丢弃
             n_drop += 1
             continue
 
         input_ids = prompt_ids + answer_ids + [tokenizer.eos_token_id]
-        labels    = [-100] * len(prompt_ids) + answer_ids + [tokenizer.eos_token_id]
+        labels = [-100] * len(prompt_ids) + answer_ids + [tokenizer.eos_token_id]
         processed.append({
             "input_ids": input_ids,
             "labels": labels,
-            "prompt_len": len(prompt_ids)  # ← 新增这一行
+            "prompt_len": len(prompt_ids)
         })
 
-    print(f"[build_dataset] 丢弃超长样本 {n_drop}/{len(raw_datas)}  ({n_drop/len(raw_datas):.2%})")
+    print(f"[build_dataset] 丢弃超长样本 {n_drop}/{len(raw_datas)}  ({n_drop / len(raw_datas):.2%})")
     return dict_list_to_hf_dataset(processed)
 
 
@@ -193,18 +191,16 @@ def main():
 
     train_ds = build_dataset(tokenizer, raw_train, max_seq_len)
 
-    # —— Collator 修正 —— #
-    # data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
     data_collator = DataCollatorWithPadding(
         tokenizer=tokenizer,
-        # pad_to_multiple_of=8,  # 可选，便于 tensor 并行
+        # pad_to_multiple_of=8,
         return_tensors="pt"
     )
 
     args = TrainingArguments(
         output_dir="/datanfs4/xinzheyu/project/overthinking_Dr.Dai/code/checkpoints/ckpt-qwen25-3b-verify-16k-2",
         per_device_train_batch_size=1,
-        gradient_accumulation_steps=8,      # ==> 实际等效总 batch 2
+        gradient_accumulation_steps=8,
         num_train_epochs=4,
         learning_rate=5e-5,
         lr_scheduler_type="cosine",
@@ -214,7 +210,7 @@ def main():
         save_steps=100,
         bf16=True,
         report_to="wandb",  # 让 Trainer 自动写 wandb 日志
-        run_name="qwen25-3b-verify-16k-2",  # 可选：自定义 run 名
+        run_name="qwen25-3b-verify-16k-2",
         label_names=["labels"],
         gradient_checkpointing=True,
         deepspeed="/datanfs4/xinzheyu/project/overthinking_Dr.Dai/ds_config.json",

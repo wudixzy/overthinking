@@ -79,6 +79,7 @@ def main():
     with open(args.test_file, 'r', encoding='utf-8') as f:
         test_data = json.load(f)
 
+    test_data = test_data[:10]
     # --- 修改开始 ---
     # 创建一个列表来存放打包好的数据（原始索引, prompt, 标准答案）
     # 这样可以在排序后依然保持数据对齐
