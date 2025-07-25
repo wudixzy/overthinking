@@ -62,11 +62,11 @@ class MyTrainer(Trainer):
         shift_logits = logits[:, :-1, :]                    # (B, L-1, V)
         shift_labels = labels[:, 1:]                        # (B, L-1)
 
-        # flat_logits = shift_logits.view(-1, shift_logits.size(-1))
-        # flat_labels = shift_labels.view(-1)
+        flat_logits = shift_logits.view(-1, shift_logits.size(-1))
+        flat_labels = shift_labels.view(-1)
 
 
-        loss = flash_ce(shift_logits, shift_labels)
+        loss = flash_ce(flat_logits, flat_labels)
 
         return (loss, shift_logits) if return_outputs else loss
 
@@ -114,7 +114,7 @@ def build_dataset(tokenizer, raw_datas, max_len):
             continue
 
         input_ids = prompt_ids + answer_ids + [tokenizer.eos_token_id]
-        labels    = [-100] * len(prompt_ids) + answer_ids + [tokenizer.eos_token_id]
+        labels = [-100] * len(prompt_ids) + answer_ids + [tokenizer.eos_token_id]
         processed.append({
             "input_ids": input_ids,
             "labels": labels,
@@ -132,7 +132,7 @@ class GreedyEvalCallback(TrainerCallback):
         self.sample = sample_inputs
         self.interval = interval
         self.gen_cfg = GenerationConfig(
-            max_new_tokens=2048, temperature=0.0, top_p=1.0, top_k=-1,
+            max_new_tokens=1024, temperature=0.7, top_p=0.8, top_k=20, min_p=0,
             eos_token_id=tokenizer.eos_token_id,
         )
 
@@ -160,7 +160,7 @@ class GreedyEvalCallback(TrainerCallback):
 # -------------------- 3. 主函数 -------------------- #
 def main():
     model_name = "/datanfs4/xinzheyu/project/models/Qwen/Qwen3-4B"
-    max_seq_len = 15360
+    max_seq_len = 14336
 
     raw_train = read_json_file("datas/our_datas/math_train_datas_verification.json")
     # 调试代码使用 便于快速查看
@@ -236,7 +236,7 @@ def main():
         tokenizer=tokenizer,
         train_dataset=train_ds,
         data_collator=data_collator,
-        callbacks=[GreedyEvalCallback(tokenizer, sample_inputs, interval=100)],
+        callbacks=[GreedyEvalCallback(tokenizer, sample_inputs, interval=50)],
     )
 
     trainer.train()
